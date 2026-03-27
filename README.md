@@ -8,8 +8,6 @@
 
 This ingest uses the `cureid_data.tsv` file from the [NCATS Open Data Portal](https://opendata.ncats.nih.gov/public/cureid/). The file contains manually and LLM curated associations between chemicals, diseases, phenotypic features, genes, and variants from case reports documented in CURE ID.
 
-This initial ingest focuses on case report entities and relationships for RASopathies as documented in CURE ID.
-
 ### Source File Fields
 
 - subject_type, subject_final_curie, subject_final_label
@@ -19,7 +17,7 @@ This initial ingest focuses on case report entities and relationships for RASopa
 
 ## Data Model
 
-This ingest uses a **case-centered star model** where `biolink:Case` nodes represent individual patient case reports from CURE ID. Each case links to its diseases, phenotypes, and genes, preserving the case report context that would be lost with direct pairwise edges.
+This ingest uses a **case-centered star model** where `biolink:Case` nodes represent individual patient case reports from CURE ID. Each case links to its diseases, phenotypes, and genes, preserving the case report context.
 
 ### Row-type-to-output mapping
 
