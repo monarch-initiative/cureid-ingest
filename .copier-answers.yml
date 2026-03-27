@@ -1,0 +1,12 @@
+_commit: 4611bce
+_src_path: /Users/kschaper/Monarch/kozahub/koza-ingest-template
+copyright_year: '2026'
+email: kevinschaper@gmail.com
+full_name: Kevin Schaper
+github_handle: monarch-initiative
+github_org: monarch-initiative
+license: BSD-3-Clause
+project_description: Koza ingest for transforming CURE ID drug repurposing and real-world
+    treatment data into KGX format
+project_name: cureid-ingest
+project_slug: cureid_ingest

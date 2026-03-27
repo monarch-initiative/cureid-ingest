@@ -1,0 +1,58 @@
+name: cureid
+
+metadata:
+  ingest_title: "CURE ID"
+  ingest_url: "https://opendata.ncats.nih.gov/public/cureid/"
+  description: "CURE ID drug repurposing and real-world treatment data for rare diseases"
+  provided_by: "infores:cureid"
+
+reader:
+  format: "csv"
+  delimiter: "\t"
+  header_mode: infer
+  header_prefix: "#"
+  files:
+    - "../data/cureid_data.tsv"
+  columns:
+    - subject_label_original
+    - subject_label
+    - subject_type
+    - subject_final_label
+    - subject_final_curie
+    - subject_missing_final
+    - predicate_raw
+    - biolink_predicate
+    - association_category
+    - object_label_original
+    - object_label
+    - object_type
+    - object_final_label
+    - object_final_curie
+    - object_missing_final
+    - report_id
+    - pmid
+    - link
+    - outcome
+
+writer:
+  min_node_count: 0
+  min_edge_count: 0
+  node_properties:
+    - id
+    - category
+    - name
+    - iri
+    - in_taxon
+  edge_properties:
+    - id
+    - category
+    - subject
+    - predicate
+    - object
+    - primary_knowledge_source
+    - aggregator_knowledge_source
+    - knowledge_level
+    - agent_type
+    - publications
+    - FDA_adverse_event_level
+    - disease_context_qualifier

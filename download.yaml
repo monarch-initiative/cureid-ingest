@@ -1,0 +1,3 @@
+---
+  - url: "https://opendata.ncats.nih.gov/public/cureid/cureid_data.tsv"
+    local_name: "data/cureid_data.tsv"
