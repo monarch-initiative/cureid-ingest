@@ -9,14 +9,10 @@ from biolink_model.datamodel.pydanticmodel_v2 import (
     CaseToDiseaseAssociation,
     CaseToGeneAssociation,
     CaseToPhenotypicFeatureAssociation,
-    ChemicalEntity,
     ChemicalEntityToDiseaseOrPhenotypicFeatureAssociation,
     ChemicalOrDrugOrTreatmentAdverseEventAssociation,
-    Disease,
     FDAIDAAdverseEventEnum,
-    Gene,
     KnowledgeLevelEnum,
-    PhenotypicFeature,
 )
 from koza import KozaTransform
 
@@ -24,14 +20,6 @@ INFORES_CUREID = "infores:cureid"
 
 # Namespace for deterministic UUIDs
 _UUID_NAMESPACE = uuid.UUID("d6a2f389-4f7d-4e6b-a7f3-89c2e4b5d6a1")
-
-NODE_CLASS_MAP = {
-    "Drug": ChemicalEntity,
-    "Disease": Disease,
-    "Gene": Gene,
-    "PhenotypicFeature": PhenotypicFeature,
-    "AdverseEvent": PhenotypicFeature,
-}
 
 
 @koza.transform_record()
@@ -57,17 +45,15 @@ def transform_record(koza_transform: KozaTransform, row: dict[str, Any]) -> list
 
 
 def _transform_disease_to_phenotype(row: dict[str, Any]) -> list:
-    """Disease→Phenotype row → Case + Disease + PhenotypicFeature + 2 edges."""
+    """Disease→Phenotype row → Case node + 2 edges (no disease/phenotype nodes)."""
     case = _make_case_node(row)
-    disease = Disease(id=row["subject_final_curie"], name=row["subject_final_label"])
-    phenotype = PhenotypicFeature(id=row["object_final_curie"], name=row["object_final_label"])
     publications = _get_publications(row)
 
     case_to_disease = CaseToDiseaseAssociation(
         id=_deterministic_edge_id("CaseToDisease", row["report_id"], row["subject_final_curie"]),
         subject=case.id,
         predicate="biolink:has_disease",
-        object=disease.id,
+        object=row["subject_final_curie"],
         primary_knowledge_source=INFORES_CUREID,
         aggregator_knowledge_source=["infores:monarchinitiative"],
         knowledge_level=KnowledgeLevelEnum.observation,
@@ -79,8 +65,8 @@ def _transform_disease_to_phenotype(row: dict[str, Any]) -> list:
         id=_deterministic_edge_id("CaseToPhenotype", row["report_id"], row["object_final_curie"]),
         subject=case.id,
         predicate="biolink:has_phenotype",
-        object=phenotype.id,
-        disease_context_qualifier=disease.id,
+        object=row["object_final_curie"],
+        disease_context_qualifier=row["subject_final_curie"],
         primary_knowledge_source=INFORES_CUREID,
         aggregator_knowledge_source=["infores:monarchinitiative"],
         knowledge_level=KnowledgeLevelEnum.observation,
@@ -88,21 +74,19 @@ def _transform_disease_to_phenotype(row: dict[str, Any]) -> list:
         publications=publications or None,
     )
 
-    return [case, disease, phenotype, case_to_disease, case_to_phenotype]
+    return [case, case_to_disease, case_to_phenotype]
 
 
 def _transform_gene_to_disease(row: dict[str, Any]) -> list:
-    """Gene→Disease row → Case + Gene + Disease + 2 edges."""
+    """Gene→Disease row → Case node + 2 edges (no gene/disease nodes)."""
     case = _make_case_node(row)
-    gene = Gene(id=row["subject_final_curie"], name=row["subject_final_label"])
-    disease = Disease(id=row["object_final_curie"], name=row["object_final_label"])
     publications = _get_publications(row)
 
     case_to_disease = CaseToDiseaseAssociation(
         id=_deterministic_edge_id("CaseToDisease", row["report_id"], row["object_final_curie"]),
         subject=case.id,
         predicate="biolink:has_disease",
-        object=disease.id,
+        object=row["object_final_curie"],
         primary_knowledge_source=INFORES_CUREID,
         aggregator_knowledge_source=["infores:monarchinitiative"],
         knowledge_level=KnowledgeLevelEnum.observation,
@@ -114,7 +98,7 @@ def _transform_gene_to_disease(row: dict[str, Any]) -> list:
         id=_deterministic_edge_id("CaseToGene", row["report_id"], row["subject_final_curie"]),
         subject=case.id,
         predicate="biolink:has_gene",
-        object=gene.id,
+        object=row["subject_final_curie"],
         primary_knowledge_source=INFORES_CUREID,
         aggregator_knowledge_source=["infores:monarchinitiative"],
         knowledge_level=KnowledgeLevelEnum.observation,
@@ -122,26 +106,19 @@ def _transform_gene_to_disease(row: dict[str, Any]) -> list:
         publications=publications or None,
     )
 
-    return [case, gene, disease, case_to_disease, case_to_gene]
+    return [case, case_to_disease, case_to_gene]
 
 
 def _transform_chemical(row: dict[str, Any]) -> list:
-    """Chemical→Disease/Phenotype/AdverseEvent row → ChemicalEntity + target + 1 edge."""
-    subject_node = ChemicalEntity(id=row["subject_final_curie"], name=row["subject_final_label"])
-
-    object_class = NODE_CLASS_MAP.get(row["object_type"])
-    if object_class is None:
-        raise ValueError(f"Unhandled object type: {row['object_type']} in record: {row}")
-    object_node = object_class(id=row["object_final_curie"], name=row["object_final_label"])
-
+    """Chemical→Disease/Phenotype/AdverseEvent row → edge only (no entity nodes)."""
     publications = _get_publications(row)
 
     if row["object_type"] == "AdverseEvent":
         edge = ChemicalOrDrugOrTreatmentAdverseEventAssociation(
             id=str(uuid.uuid4()),
-            subject=subject_node.id,
+            subject=row["subject_final_curie"],
             predicate=row["biolink_predicate"],
-            object=object_node.id,
+            object=row["object_final_curie"],
             FDA_adverse_event_level=get_adverse_event_level_from_outcomes(row["outcome"].split(";")),
             primary_knowledge_source=INFORES_CUREID,
             aggregator_knowledge_source=["infores:monarchinitiative"],
@@ -152,9 +129,9 @@ def _transform_chemical(row: dict[str, Any]) -> list:
     else:
         edge = ChemicalEntityToDiseaseOrPhenotypicFeatureAssociation(
             id=str(uuid.uuid4()),
-            subject=subject_node.id,
+            subject=row["subject_final_curie"],
             predicate=row["biolink_predicate"],
-            object=object_node.id,
+            object=row["object_final_curie"],
             primary_knowledge_source=INFORES_CUREID,
             aggregator_knowledge_source=["infores:monarchinitiative"],
             knowledge_level=KnowledgeLevelEnum.knowledge_assertion,
@@ -162,7 +139,7 @@ def _transform_chemical(row: dict[str, Any]) -> list:
             publications=publications or None,
         )
 
-    return [subject_node, object_node, edge]
+    return [edge]
 
 
 # ---------------------------------------------------------------------------

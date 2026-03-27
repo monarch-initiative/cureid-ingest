@@ -5,14 +5,10 @@ from biolink_model.datamodel.pydanticmodel_v2 import (
     CaseToDiseaseAssociation,
     CaseToGeneAssociation,
     CaseToPhenotypicFeatureAssociation,
-    ChemicalEntity,
     ChemicalEntityToDiseaseOrPhenotypicFeatureAssociation,
     ChemicalOrDrugOrTreatmentAdverseEventAssociation,
-    Disease,
     FDAIDAAdverseEventEnum,
-    Gene,
     KnowledgeLevelEnum,
-    PhenotypicFeature,
 )
 
 from transform import get_adverse_event_level_from_outcomes, transform_record
@@ -212,7 +208,7 @@ def variant_to_disease_row():
 class TestCaseDiseaseAndPhenotype:
     def test_entity_count(self, disease_to_phenotype_row):
         entities = transform_record(None, disease_to_phenotype_row)
-        assert len(entities) == 5  # Case + Disease + PhenotypicFeature + 2 edges
+        assert len(entities) == 3  # Case + 2 edges
 
     def test_case_node(self, disease_to_phenotype_row):
         entities = transform_record(None, disease_to_phenotype_row)
@@ -222,21 +218,13 @@ class TestCaseDiseaseAndPhenotype:
         assert case.iri == "https://cure.ncats.io/case/1"
         assert case.in_taxon == ["NCBITaxon:9606"]
 
-    def test_disease_node(self, disease_to_phenotype_row):
+    def test_no_disease_or_phenotype_nodes(self, disease_to_phenotype_row):
         entities = transform_record(None, disease_to_phenotype_row)
-        disease = entities[1]
-        assert isinstance(disease, Disease)
-        assert disease.id == "MONDO:0018542"
-
-    def test_phenotype_node(self, disease_to_phenotype_row):
-        entities = transform_record(None, disease_to_phenotype_row)
-        phenotype = entities[2]
-        assert isinstance(phenotype, PhenotypicFeature)
-        assert phenotype.id == "HP:0004322"
+        assert all(isinstance(e, (Case, CaseToDiseaseAssociation, CaseToPhenotypicFeatureAssociation)) for e in entities)
 
     def test_case_to_disease_edge(self, disease_to_phenotype_row):
         entities = transform_record(None, disease_to_phenotype_row)
-        edge = entities[3]
+        edge = entities[1]
         assert isinstance(edge, CaseToDiseaseAssociation)
         assert edge.subject == "CUREID:1"
         assert edge.object == "MONDO:0018542"
@@ -246,7 +234,7 @@ class TestCaseDiseaseAndPhenotype:
 
     def test_case_to_phenotype_edge(self, disease_to_phenotype_row):
         entities = transform_record(None, disease_to_phenotype_row)
-        edge = entities[4]
+        edge = entities[2]
         assert isinstance(edge, CaseToPhenotypicFeatureAssociation)
         assert edge.subject == "CUREID:1"
         assert edge.object == "HP:0004322"
@@ -259,12 +247,12 @@ class TestCaseDiseaseAndPhenotype:
         """Same row should produce same edge IDs."""
         entities_a = transform_record(None, disease_to_phenotype_row)
         entities_b = transform_record(None, disease_to_phenotype_row)
-        assert entities_a[3].id == entities_b[3].id  # Case→Disease
-        assert entities_a[4].id == entities_b[4].id  # Case→Phenotype
+        assert entities_a[1].id == entities_b[1].id  # Case→Disease
+        assert entities_a[2].id == entities_b[2].id  # Case→Phenotype
 
     def test_publications(self, disease_to_phenotype_row):
         entities = transform_record(None, disease_to_phenotype_row)
-        edge = entities[3]
+        edge = entities[1]
         assert edge.publications == ["PMID:12345678"]
 
 
@@ -276,7 +264,7 @@ class TestCaseDiseaseAndPhenotype:
 class TestCaseDiseaseAndGene:
     def test_entity_count(self, gene_to_disease_row):
         entities = transform_record(None, gene_to_disease_row)
-        assert len(entities) == 5  # Case + Gene + Disease + 2 edges
+        assert len(entities) == 3  # Case + 2 edges
 
     def test_case_node(self, gene_to_disease_row):
         entities = transform_record(None, gene_to_disease_row)
@@ -284,21 +272,13 @@ class TestCaseDiseaseAndGene:
         assert isinstance(case, Case)
         assert case.id == "CUREID:1"
 
-    def test_gene_node(self, gene_to_disease_row):
+    def test_no_gene_or_disease_nodes(self, gene_to_disease_row):
         entities = transform_record(None, gene_to_disease_row)
-        gene = entities[1]
-        assert isinstance(gene, Gene)
-        assert gene.id == "NCBIGene:673"
-
-    def test_disease_node(self, gene_to_disease_row):
-        entities = transform_record(None, gene_to_disease_row)
-        disease = entities[2]
-        assert isinstance(disease, Disease)
-        assert disease.id == "MONDO:0018542"
+        assert all(isinstance(e, (Case, CaseToDiseaseAssociation, CaseToGeneAssociation)) for e in entities)
 
     def test_case_to_disease_edge(self, gene_to_disease_row):
         entities = transform_record(None, gene_to_disease_row)
-        edge = entities[3]
+        edge = entities[1]
         assert isinstance(edge, CaseToDiseaseAssociation)
         assert edge.subject == "CUREID:1"
         assert edge.object == "MONDO:0018542"
@@ -306,7 +286,7 @@ class TestCaseDiseaseAndGene:
 
     def test_case_to_gene_edge(self, gene_to_disease_row):
         entities = transform_record(None, gene_to_disease_row)
-        edge = entities[4]
+        edge = entities[2]
         assert isinstance(edge, CaseToGeneAssociation)
         assert edge.subject == "CUREID:1"
         assert edge.object == "NCBIGene:673"
@@ -316,8 +296,8 @@ class TestCaseDiseaseAndGene:
     def test_deterministic_edge_ids(self, gene_to_disease_row):
         entities_a = transform_record(None, gene_to_disease_row)
         entities_b = transform_record(None, gene_to_disease_row)
-        assert entities_a[3].id == entities_b[3].id
-        assert entities_a[4].id == entities_b[4].id
+        assert entities_a[1].id == entities_b[1].id
+        assert entities_a[2].id == entities_b[2].id
 
 
 # ---------------------------------------------------------------------------
@@ -328,35 +308,24 @@ class TestCaseDiseaseAndGene:
 class TestChemicalToDisease:
     def test_entity_count(self, chemical_to_disease_row):
         entities = transform_record(None, chemical_to_disease_row)
-        assert len(entities) == 3
-
-    def test_subject_is_chemical_entity(self, chemical_to_disease_row):
-        entities = transform_record(None, chemical_to_disease_row)
-        assert isinstance(entities[0], ChemicalEntity)
-        assert entities[0].id == "CHEBI:75998"
-        assert entities[0].name == "trametinib"
-
-    def test_object_is_disease(self, chemical_to_disease_row):
-        entities = transform_record(None, chemical_to_disease_row)
-        assert isinstance(entities[1], Disease)
-        assert entities[1].id == "MONDO:0018542"
+        assert len(entities) == 1  # edge only, no entity nodes
 
     def test_edge_is_chemical_to_disease_association(self, chemical_to_disease_row):
         entities = transform_record(None, chemical_to_disease_row)
-        edge = entities[2]
+        edge = entities[0]
         assert isinstance(edge, ChemicalEntityToDiseaseOrPhenotypicFeatureAssociation)
         assert edge.subject == "CHEBI:75998"
         assert edge.object == "MONDO:0018542"
         assert edge.predicate == "biolink:applied_to_treat"
         assert edge.knowledge_level == KnowledgeLevelEnum.knowledge_assertion
 
-    def test_no_case_node(self, chemical_to_disease_row):
+    def test_no_nodes(self, chemical_to_disease_row):
         entities = transform_record(None, chemical_to_disease_row)
-        assert not any(isinstance(e, Case) for e in entities)
+        assert all(isinstance(e, ChemicalEntityToDiseaseOrPhenotypicFeatureAssociation) for e in entities)
 
     def test_publication_is_set(self, chemical_to_disease_row):
         entities = transform_record(None, chemical_to_disease_row)
-        edge = entities[2]
+        edge = entities[0]
         assert "PMID:12345678" in edge.publications
 
 
@@ -368,26 +337,15 @@ class TestChemicalToDisease:
 class TestChemicalToPhenotype:
     def test_entity_count(self, chemical_to_phenotype_row):
         entities = transform_record(None, chemical_to_phenotype_row)
-        assert len(entities) == 3
-
-    def test_subject_is_chemical_entity(self, chemical_to_phenotype_row):
-        entities = transform_record(None, chemical_to_phenotype_row)
-        assert isinstance(entities[0], ChemicalEntity)
-
-    def test_object_is_phenotypic_feature(self, chemical_to_phenotype_row):
-        entities = transform_record(None, chemical_to_phenotype_row)
-        assert isinstance(entities[1], PhenotypicFeature)
-        assert entities[1].id == "HP:0004322"
+        assert len(entities) == 1  # edge only
 
     def test_edge_predicate(self, chemical_to_phenotype_row):
         entities = transform_record(None, chemical_to_phenotype_row)
-        edge = entities[2]
+        edge = entities[0]
         assert isinstance(edge, ChemicalEntityToDiseaseOrPhenotypicFeatureAssociation)
+        assert edge.subject == "CHEBI:75998"
+        assert edge.object == "HP:0004322"
         assert edge.predicate == "biolink:applied_to_treat"
-
-    def test_no_case_node(self, chemical_to_phenotype_row):
-        entities = transform_record(None, chemical_to_phenotype_row)
-        assert not any(isinstance(e, Case) for e in entities)
 
 
 # ---------------------------------------------------------------------------
@@ -398,18 +356,17 @@ class TestChemicalToPhenotype:
 class TestAdverseEvent:
     def test_produces_adverse_event_association(self, adverse_event_row):
         entities = transform_record(None, adverse_event_row)
-        edge = entities[2]
+        assert len(entities) == 1
+        edge = entities[0]
         assert isinstance(edge, ChemicalOrDrugOrTreatmentAdverseEventAssociation)
         assert edge.FDA_adverse_event_level == FDAIDAAdverseEventEnum.unexpected_adverse_event
         assert edge.knowledge_level == KnowledgeLevelEnum.observation
 
-    def test_adverse_event_object_is_phenotypic_feature(self, adverse_event_row):
+    def test_adverse_event_edge_references(self, adverse_event_row):
         entities = transform_record(None, adverse_event_row)
-        assert isinstance(entities[1], PhenotypicFeature)
-
-    def test_no_case_node(self, adverse_event_row):
-        entities = transform_record(None, adverse_event_row)
-        assert not any(isinstance(e, Case) for e in entities)
+        edge = entities[0]
+        assert edge.subject == "CHEBI:75998"
+        assert edge.object == "HP:0000988"
 
 
 # ---------------------------------------------------------------------------

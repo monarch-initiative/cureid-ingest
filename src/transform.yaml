@@ -40,7 +40,6 @@ writer:
   node_properties:
     - id
     - category
-    - name
     - iri
     - in_taxon
   edge_properties:
