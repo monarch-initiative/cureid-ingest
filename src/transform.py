@@ -1,4 +1,3 @@
-import uuid
 from enum import Enum
 from typing import Any
 
@@ -19,8 +18,6 @@ from koza import KozaTransform
 INFORES_CUREID = "infores:cureid"
 
 # Namespace for deterministic UUIDs
-_UUID_NAMESPACE = uuid.UUID("d6a2f389-4f7d-4e6b-a7f3-89c2e4b5d6a1")
-
 
 @koza.transform_record()
 def transform_record(koza_transform: KozaTransform, row: dict[str, Any]) -> list:
@@ -50,7 +47,6 @@ def _transform_disease_to_phenotype(row: dict[str, Any]) -> list:
     publications = _get_publications(row)
 
     case_to_disease = CaseToDiseaseAssociation(
-        id=_deterministic_edge_id("CaseToDisease", row["report_id"], row["subject_final_curie"]),
         subject=case.id,
         predicate="biolink:has_disease",
         object=row["subject_final_curie"],
@@ -62,7 +58,6 @@ def _transform_disease_to_phenotype(row: dict[str, Any]) -> list:
     )
 
     case_to_phenotype = CaseToPhenotypicFeatureAssociation(
-        id=_deterministic_edge_id("CaseToPhenotype", row["report_id"], row["object_final_curie"]),
         subject=case.id,
         predicate="biolink:has_phenotype",
         object=row["object_final_curie"],
@@ -83,7 +78,6 @@ def _transform_gene_to_disease(row: dict[str, Any]) -> list:
     publications = _get_publications(row)
 
     case_to_disease = CaseToDiseaseAssociation(
-        id=_deterministic_edge_id("CaseToDisease", row["report_id"], row["object_final_curie"]),
         subject=case.id,
         predicate="biolink:has_disease",
         object=row["object_final_curie"],
@@ -95,7 +89,6 @@ def _transform_gene_to_disease(row: dict[str, Any]) -> list:
     )
 
     case_to_gene = CaseToGeneAssociation(
-        id=_deterministic_edge_id("CaseToGene", row["report_id"], row["subject_final_curie"]),
         subject=case.id,
         predicate="biolink:has_gene",
         object=row["subject_final_curie"],
@@ -115,7 +108,6 @@ def _transform_chemical(row: dict[str, Any]) -> list:
 
     if row["object_type"] == "AdverseEvent":
         edge = ChemicalOrDrugOrTreatmentAdverseEventAssociation(
-            id=str(uuid.uuid4()),
             subject=row["subject_final_curie"],
             predicate=row["biolink_predicate"],
             object=row["object_final_curie"],
@@ -128,7 +120,6 @@ def _transform_chemical(row: dict[str, Any]) -> list:
         )
     else:
         edge = ChemicalEntityToDiseaseOrPhenotypicFeatureAssociation(
-            id=str(uuid.uuid4()),
             subject=row["subject_final_curie"],
             predicate=row["biolink_predicate"],
             object=row["object_final_curie"],
@@ -155,8 +146,6 @@ def _make_case_node(row: dict[str, Any]) -> Case:
     )
 
 
-def _deterministic_edge_id(edge_type: str, report_id: str, target_curie: str) -> str:
-    return str(uuid.uuid5(_UUID_NAMESPACE, f"{edge_type}-{report_id}-{target_curie}"))
 
 
 def _get_publications(record: dict[str, Any]) -> list[str]:
